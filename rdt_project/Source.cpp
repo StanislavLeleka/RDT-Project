@@ -44,7 +44,41 @@ typedef struct udp_header {
 	u_short crc;
 } udp_header;
 
+typedef struct tcp_header
+{
+	unsigned short source_port;  // source port
+	unsigned short dest_port;    // destination port
+	unsigned int   sequence;     // sequence number - 32 bits
+	unsigned int   acknowledge;  // acknowledgement number - 32 bits
+
+	unsigned char  ns : 1;          //Nonce Sum Flag Added in RFC 3540.
+	unsigned char  reserved_part1 : 3; //according to rfc
+	unsigned char  data_offset : 4;    //number of dwords in the TCP header.
+
+	unsigned char  fin : 1;      //Finish Flag
+	unsigned char  syn : 1;      //Synchronise Flag
+	unsigned char  rst : 1;      //Reset Flag
+	unsigned char  psh : 1;      //Push Flag
+	unsigned char  ack : 1;      //Acknowledgement Flag
+	unsigned char  urg : 1;      //Urgent Flag
+
+	unsigned char  ecn : 1;      //ECN-Echo Flag
+	unsigned char  cwr : 1;      //Congestion Window Reduced Flag
+
+	unsigned short window;          // window
+	unsigned short checksum;        // checksum
+	unsigned short urgent_pointer;  // urgent pointer
+}   tcp_hdr;
+
+typedef struct ethernet_header
+{
+	UCHAR dest[6];
+	UCHAR source[6];
+	USHORT type;
+}   ETHER_HDR, *PETHER_HDR, FAR * LPETHER_HDR, ETHERHeader;
+
 void packet_handler(u_char *param, const struct pcap_pkthdr *header, const u_char *pkt_data);
+void print_data(u_char *data, int size);
 
 int main()
 {
@@ -55,7 +89,7 @@ int main()
 	char errbuf[PCAP_ERRBUF_SIZE];
 	int i;
 
-	char packet_filter[] = "ip and tcp";
+	char packet_filter[] = "tcp";
 	u_int netmask;
 	struct bpf_program fcode;
 
@@ -211,7 +245,7 @@ void packet_handler(u_char *param, const struct pcap_pkthdr *header, const u_cha
 	struct tm ltime;
 	char timestr[16];
 	ip_header *ih;
-	udp_header *uh;
+	tcp_hdr *tcp_header;
 	u_int ip_len;
 	u_short sport, dport;
 	time_t local_tv_sec;
@@ -225,12 +259,13 @@ void packet_handler(u_char *param, const struct pcap_pkthdr *header, const u_cha
 	printf("%s.%.6d len:%d ", timestr, header->ts.tv_usec, header->len);
 
 	ih = (ip_header *)(pkt_data + 14);
-
+	
 	ip_len = (ih->ver_ihl & 0xf) * 4;
-	uh = (udp_header *)((u_char*)ih + ip_len);
+	tcp_header = (tcp_hdr*)(pkt_data + sizeof(ETHER_HDR));
+	int tcp_header_len = tcp_header->data_offset * 4;
 
-	sport = ntohs(uh->sport);
-	dport = ntohs(uh->dport);
+	sport = ntohs(tcp_header->source_port);
+	dport = ntohs(tcp_header->dest_port);
 	
 	struct addrinfo hints;
 	struct addrinfo *s_res = 0;
@@ -267,15 +302,12 @@ void packet_handler(u_char *param, const struct pcap_pkthdr *header, const u_cha
 
 	status = getaddrinfo(source_ip, 0, 0, &s_res);
 	getnameinfo(s_res->ai_addr, s_res->ai_addrlen, source_host, sizeof source_host, 0, 0, 0);
-	
-	
+		
 	status = getaddrinfo(dest_ip, 0, 0, &d_res);
 	if (d_res != NULL) 
 	{
 		getnameinfo(d_res->ai_addr, d_res->ai_addrlen, dest_host, sizeof dest_host, 0, 0, 0);
 	}
-
-	freeaddrinfo(d_res);
 
 	printf("%s:%d---%s -> %s:%d---%s\n",
 			source_ip,
@@ -284,4 +316,46 @@ void packet_handler(u_char *param, const struct pcap_pkthdr *header, const u_cha
 			dest_ip,
 			dport,
 			dest_host);	
+
+	printf("DATA Payload\n");
+
+	u_char *data;
+	data = (u_char*)(pkt_data + sizeof(ETHER_HDR) + ip_len + tcp_header_len);
+
+	int data_size = (header->len - sizeof(ETHER_HDR) - ip_len - tcp_header_len);
+
+	print_data(data, data_size);
+
+	freeaddrinfo(d_res);
+}
+
+void print_data(u_char *data, int size)
+{
+	unsigned char a, line[17], c;
+	int j;
+
+	for (int i = 0; i < size; i++)
+	{
+		c = data[i];
+		printf(" %.2x", (unsigned int)c);
+
+		a = (c >= 32 && c <= 128) ? ((unsigned char)c) : '.';
+
+		line[i % 16] = a;
+
+		if ((i != 0 && (i + 1) % 16 == 0) || i == size - 1)
+		{
+			line[i % 16 + 1] = '\0';
+			printf("			");
+
+			for (j = sizeof line; j < 16; j++)
+			{
+				printf("	");
+			}
+
+			printf("%s \n", line);
+		}
+	}
+
+	printf("\n");
 }
