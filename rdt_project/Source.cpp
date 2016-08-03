@@ -1,5 +1,6 @@
 #include <pcap.h>
 #include <WinSock2.h>
+#include <iostream>
 
 char * iptos(u_long in);
 pcap_if_t* print_devices_list(int &i);
@@ -79,6 +80,9 @@ typedef struct ethernet_header
 
 void packet_handler(u_char *param, const struct pcap_pkthdr *header, const u_char *pkt_data);
 void print_data(u_char *data, int size);
+void print_all_data(u_char *data, int size);
+
+FILE *file;
 
 int main()
 {
@@ -159,6 +163,8 @@ int main()
 				printf("\nlistening on %s...", d->description);
 
 				pcap_freealldevs(all_devs);
+
+				file = fopen("dump.txt", "w");
 
 				pcap_loop(adhandle, 0, packet_handler, NULL);
 			}
@@ -261,6 +267,7 @@ void packet_handler(u_char *param, const struct pcap_pkthdr *header, const u_cha
 	ih = (ip_header *)(pkt_data + 14);
 	
 	ip_len = (ih->ver_ihl & 0xf) * 4;
+	int e = sizeof(ETHER_HDR);
 	tcp_header = (tcp_hdr*)(pkt_data + sizeof(ETHER_HDR));
 	int tcp_header_len = tcp_header->data_offset * 4;
 
@@ -320,11 +327,11 @@ void packet_handler(u_char *param, const struct pcap_pkthdr *header, const u_cha
 	printf("DATA Payload\n");
 
 	u_char *data;
-	data = (u_char*)(pkt_data + sizeof(ETHER_HDR) + ip_len + tcp_header_len);
+	data = (u_char*)(pkt_data + tcp_header_len + ip_len/4);
 
-	int data_size = (header->len - sizeof(ETHER_HDR) - ip_len - tcp_header_len);
+	int data_size = (header->len - ip_len/4 - tcp_header_len);
 
-	print_data(data, data_size);
+	print_all_data((u_char*)(pkt_data + tcp_header_len), header->len - tcp_header_len);
 
 	freeaddrinfo(d_res);
 }
@@ -337,7 +344,7 @@ void print_data(u_char *data, int size)
 	for (int i = 0; i < size; i++)
 	{
 		c = data[i];
-		printf(" %.2x", (unsigned int)c);
+		//fprintf(file, " %.2x", (unsigned int)c);
 
 		a = (c >= 32 && c <= 128) ? ((unsigned char)c) : '.';
 
@@ -346,16 +353,52 @@ void print_data(u_char *data, int size)
 		if ((i != 0 && (i + 1) % 16 == 0) || i == size - 1)
 		{
 			line[i % 16 + 1] = '\0';
-			printf("			");
+			//fprintf(file, "			");
 
 			for (j = sizeof line; j < 16; j++)
 			{
-				printf("	");
+				fprintf(file, "	");
 			}
 
-			printf("%s \n", line);
+			fprintf(file, "%s", line);
 		}
 	}
 
-	printf("\n");
+	fprintf(file, "\n");
+}
+
+void print_all_data(u_char *data, int size)
+{
+	unsigned char a, line[17], c;
+	int j;
+
+	std::string str_data = "";
+
+	for (int i = 0; i < size; i++)
+	{
+		c = data[i];
+		//fprintf(file, " %.2x", (unsigned int)c);
+
+		a = (c >= 32 && c <= 128) ? ((unsigned char)c) : '.';
+
+		line[i % 16] = a;
+
+		if ((i != 0 && (i + 1) % 16 == 0) || i == size - 1)
+		{
+			line[i % 16 + 1] = '\0';
+			//fprintf(file, "			");
+
+			for (j = sizeof line; j < 16; j++)
+			{
+				fprintf(file, "	");
+			}
+
+			fprintf(file, "%s", line);
+
+			std::string str((char*)line);
+			str_data += str;
+		}
+	}
+
+	fprintf(file, "\n\n");
 }

@@ -1,6 +1,8 @@
 ﻿  Source.cpp
-c:\users\eins\documents\visual studio 2015\projects\rdt_project\rdt_project\source.cpp(289): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+c:\users\eins\documents\visual studio 2015\projects\rdt_project\rdt_project\source.cpp(167): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\stdio.h(205): note: see declaration of 'fopen'
+c:\users\eins\documents\visual studio 2015\projects\rdt_project\rdt_project\source.cpp(296): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
   c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\stdio.h(1769): note: see declaration of 'sprintf'
-c:\users\eins\documents\visual studio 2015\projects\rdt_project\rdt_project\source.cpp(295): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+c:\users\eins\documents\visual studio 2015\projects\rdt_project\rdt_project\source.cpp(302): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
   c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\stdio.h(1769): note: see declaration of 'sprintf'
   rdt_project.vcxproj -> C:\Users\Eins\documents\visual studio 2015\Projects\rdt_project\Debug\rdt_project.exe
