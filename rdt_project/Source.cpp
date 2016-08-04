@@ -1,6 +1,7 @@
 #include <pcap.h>
 #include <WinSock2.h>
 #include <iostream>
+#include <string>
 
 char * iptos(u_long in);
 pcap_if_t* print_devices_list(int &i);
@@ -81,6 +82,8 @@ typedef struct ethernet_header
 void packet_handler(u_char *param, const struct pcap_pkthdr *header, const u_char *pkt_data);
 void print_data(u_char *data, int size);
 void print_all_data(u_char *data, int size);
+
+void parse_data(std::string data);
 
 FILE *file;
 
@@ -324,7 +327,7 @@ void packet_handler(u_char *param, const struct pcap_pkthdr *header, const u_cha
 			dport,
 			dest_host);	
 
-	printf("DATA Payload\n");
+	//printf("DATA Payload\n");
 
 	u_char *data;
 	data = (u_char*)(pkt_data + tcp_header_len + ip_len/4);
@@ -393,12 +396,215 @@ void print_all_data(u_char *data, int size)
 				fprintf(file, "	");
 			}
 
-			fprintf(file, "%s", line);
+			//fprintf(file, "%s", line);
 
 			std::string str((char*)line);
 			str_data += str;
 		}
 	}
 
-	fprintf(file, "\n\n");
+	//fprintf(file, "\n\n");
+	parse_data(str_data);
+}
+
+struct http_headers
+{
+	std::string method;
+	std::string path;
+	std::string host;
+	std::string connection;
+	std::string cache_control;
+	std::string user_agent;
+	std::string accept;
+	std::string referer;
+	std::string accept_encoding;
+	std::string accept_language;
+	std::string cookie[4];
+	std::string if_none_match;
+	std::string if_modified_since;
+};
+
+
+
+void print_headers(http_headers headers);
+
+void parse_data(std::string data)
+{
+	http_headers headers;
+	int data_length = data.length();
+
+	for (int i = 0; i < data_length; i++)
+	{
+		if(i < data_length - 2)
+		{
+			if ((data[i] == 'G') & (data[i + 1] == 'E') & (data[i + 2] == 'T'))
+			{
+				headers.method = "GET";
+
+				for (int j = i + 4; j < data_length; j++)
+				{
+					if (data[j] == ' ') break;
+					headers.path += data[j];
+				}
+
+				int pos = data.find("Host");
+				std::string header_data = "";
+				for (int j = pos + 6; j < data_length; j++)
+				{
+					if (data[j] == '.' & data[j + 1] == '.') break;
+					header_data += data[j];
+				}
+				headers.host = header_data;
+
+				header_data = "";
+
+				pos = data.find("Connection");
+				for (int j = pos + 12; j < data_length; j++)
+				{
+					if (data[j] == '.' & data[j + 1] == '.') break;
+					header_data += data[j];
+				}
+				headers.connection = header_data;
+
+				header_data = "";
+
+				pos = data.find("Cache-Control");
+				for (int j = pos + 15; j < data_length; j++)
+				{
+					if (data[j] == '.' & data[j + 1] == '.') break;
+					header_data += data[j];
+				}
+				headers.cache_control = header_data;
+
+				header_data = "";
+
+				pos = data.find("User-Agent");
+				for (int j = pos + 12; j < data_length; j++)
+				{
+					if (data[j] == '.' & data[j + 1] == '.') break;
+					header_data += data[j];
+				}
+				headers.user_agent = header_data;
+
+				header_data = "";
+
+				pos = data.find("Accept");
+				for (int j = pos + 8; j < data_length; j++)
+				{
+					if (data[j] == '.' & data[j + 1] == '.') break;
+					header_data += data[j];
+				}
+				headers.accept = header_data;
+
+				header_data = "";
+
+				pos = data.find("Referer");
+				for (int j = pos + 9; j < data_length; j++)
+				{
+					if (data[j] == '.' & data[j + 1] == '.') break;
+					header_data += data[j];
+				}
+				headers.referer = header_data;
+
+				header_data = "";
+
+				pos = data.find("Accept-Encoding");
+				for (int j = pos + 17; j < data_length; j++)
+				{
+					if (data[j] == '.' & data[j + 1] == '.') break;
+					header_data += data[j];
+				}
+				headers.accept_encoding = header_data;
+
+				header_data = "";
+
+				pos = data.find("Accept-Language");
+				for (int j = pos + 17; j < data_length; j++)
+				{
+					if (data[j] == '.' & data[j + 1] == '.') break;
+					header_data += data[j];
+				}
+				headers.accept_language = header_data;
+
+				header_data = "";
+
+				pos = data.find("If-None-Match");
+				for (int j = pos + 15; j < data_length; j++)
+				{
+					if (data[j] == '.' & data[j + 1] == '.') break;
+					header_data += data[j];
+				}
+				headers.if_none_match = header_data;
+
+				header_data = "";
+
+				pos = data.find("If-Modified-Since");
+				for (int j = pos + 19; j < data_length; j++)
+				{
+					if (data[j] == '.' & data[j + 1] == '.') break;
+					header_data += data[j];
+				}
+				headers.if_modified_since = header_data;
+
+				header_data = "";
+
+				pos = data.find("Cookie");
+				int c_cnt = 0;
+				std::string c_name = "";
+				for (int j = pos + 8; j < data_length; j++)
+				{
+					if (data[j] == '.' & data[j + 1] == '..') break;
+
+					if (data[j] == '=')
+					{
+						headers.cookie[c_cnt] = c_name + "=";
+						for (int k = j + 1; k < data_length; k++)
+						{
+							if (data[k] == '.' & data[k + 1] == '.') break;
+
+							if (data[k] == ';')
+							{
+								j = k + 2;
+								break;
+							}
+							headers.cookie[c_cnt] += data[k];
+							j = k;
+						}
+						
+						c_name = "";
+						c_cnt++;
+					}
+					c_name += data[j];
+				}
+			}
+		}
+	}
+
+	print_headers(headers);
+}
+
+void print_headers(http_headers headers)
+{
+	if (headers.method != "")
+	{
+		std::cout << headers.method << " " << headers.path << std::endl;
+		std::cout << "Host: " << headers.host << std::endl;
+		std::cout << "Connection: " << headers.connection << std::endl;
+		std::cout << "Cache-Control: " << headers.cache_control << std::endl;
+		std::cout << "User-Agent: " << headers.user_agent << std::endl;
+		std::cout << "Accept: " << headers.accept << std::endl;
+		std::cout << "Referer: " << headers.referer << std::endl;
+		std::cout << "Accept-Encoding: " << headers.accept_encoding << std::endl;
+		std::cout << "Accept-Language: " << headers.accept_language << std::endl;
+
+		std::cout << "Cookie: \n";
+
+		for (int i = 0; i < (sizeof(headers.cookie) / sizeof(*headers.cookie)); i++)
+		{
+			std::cout << "\t" << headers.cookie[i] << std::endl;
+		}
+
+		std::cout << "If-None-Match: " << headers.if_none_match << std::endl;
+		std::cout << "If-Modified-Since: " << headers.if_modified_since << std::endl;
+	}
 }
